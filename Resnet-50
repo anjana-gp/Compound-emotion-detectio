@@ -1,0 +1,186 @@
+#install ktrain
+!pip install ktrain
+
+#Import libraries
+import ktrain
+from ktrain import vision as vis
+import matplotlib.pyplot as plt
+import tensorflow as tf
+import cv2
+import os
+import numpy as np
+from tensorflow.keras.preprocessing.image import ImageDataGenerator
+from tensorflow.keras.preprocessing import image
+from tensorflow.keras.optimizers import RMSprop
+from tensorflow.keras import callbacks,optimizers
+
+#image reshape
+train = ImageDataGenerator(rescale=1/255)
+validation = ImageDataGenerator(rescale= 1./255)
+
+# define train and test data
+train_data = train.flow_from_directory('/content/drive/MyDrive/dataset/train',
+                                          target_size=(200,200),
+                                          batch_size=3,
+                                          class_mode='categorical')
+
+test_data = validation.flow_from_directory('/content/drive/MyDrive/dataset/test',
+                                          target_size=(200,200),
+                                          batch_size=3,
+                                          class_mode='categorical')
+# data being classified by categorical mode
+train_data.class_indices
+
+#resnet-50 model using predefined function
+
+vis.print_image_regression_models()
+
+model= vis.image_regression_model('pretrained_resnet50',
+                                  train_data=train_data,
+                                  val_data=test_data)
+
+model.summary()
+
+#metrics description
+from sklearn.metrics import accuracy_score
+from sklearn.metrics import make_scorer
+from sklearn.metrics import f1_score
+from sklearn.metrics import recall_score
+from sklearn.metrics import precision_score
+from sklearn.metrics import roc_auc_score
+import keras.backend as K
+
+def f1_score(y_true, y_pred):    
+    def recall_m(y_true, y_pred):
+        TP = K.sum(K.round(K.clip(y_true * y_pred, 0, 1)))
+        Positives = K.sum(K.round(K.clip(y_true, 0, 1)))
+        
+        recall = TP / (Positives+K.epsilon())    
+        return recall 
+    
+    
+    def precision_m(y_true, y_pred):
+        TP = K.sum(K.round(K.clip(y_true * y_pred, 0, 1)))
+        Pred_Positives = K.sum(K.round(K.clip(y_pred, 0, 1)))
+    
+        precision = TP / (Pred_Positives+K.epsilon())
+        return precision 
+    
+    precision, recall = precision_m(y_true, y_pred), recall_m(y_true, y_pred)
+    
+    return 2*((precision*recall)/(precision+recall+K.epsilon()))
+
+#model complilation
+model.compile(loss= 'categorical_crossentropy',
+              optimizer = RMSprop(lr=0.001),
+              metrics=['Precision','accuracy','Recall','AUC',f1_score])
+
+
+#confusion matrix
+from sklearn.metrics import classification_report, confusion_matrix
+
+Y_pred = model.predict_generator(train_data )
+y_pred = np.argmax(Y_pred, axis=1)
+print('Confusion Matrix')
+print(confusion_matrix(train_data.classes, y_pred))
+print('Classification Report')
+target_names = ['0', '1','2','3','4','5','6','7','8','9','10']
+print(classification_report(train_data.classes, y_pred, target_names=target_names))
+
+
+#model fit with 20 epoch
+learner = ktrain.get_learner(model=model,
+                             train_data=train_data,
+                             val_data=test_data,
+                             batch_size=64)
+
+learner.fit_onecycle(1e-4,20)
+
+#real time predictions
+
+from IPython.display import display, Javascript
+from google.colab.output import eval_js
+from base64 import b64decode
+
+def take_photo(filename='photo.jpg', quality=0.8):
+  js = Javascript('''
+    async function takePhoto(quality) {
+      const div = document.createElement('div');
+      const capture = document.createElement('button');
+      capture.textContent = 'Capture';
+      div.appendChild(capture);
+
+      const video = document.createElement('video');
+      video.style.display = 'block';
+      const stream = await navigator.mediaDevices.getUserMedia({video: true});
+
+      document.body.appendChild(div);
+      div.appendChild(video);
+      video.srcObject = stream;
+      await video.play();
+
+      // Resize the output to fit the video element.
+      google.colab.output.setIframeHeight(document.documentElement.scrollHeight, true);
+
+      // Wait for Capture to be clicked.
+      await new Promise((resolve) => capture.onclick = resolve);
+
+      const canvas = document.createElement('canvas');
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      canvas.getContext('2d').drawImage(video, 0, 0);
+      stream.getVideoTracks()[0].stop();
+      div.remove();
+      return canvas.toDataURL('image/jpeg', quality);
+    }
+    ''')
+  display(js)
+  data = eval_js('takePhoto({})'.format(quality))
+  binary = b64decode(data.split(',')[1])
+  with open(filename, 'wb') as f:
+    f.write(binary)
+  return filename
+
+from IPython.display import Image
+try:
+  filename = take_photo()
+  print('Saved to {}'.format(filename))
+  
+  # Show the image which was just taken.
+  display(Image(filename))
+except Exception as err:
+  # Errors will be thrown if the user does not have a webcam or if they do not
+  # grant the page permission to access it.
+  print(str(err))
+
+#real time predictions
+img=image.load_img('content/photo.jpg',target_size=(200,200))
+plt.imshow(img)
+X=image.img_to_array(img)
+X=np.expand_dims(X,axis=0)
+images=np.vstack([X])
+val=model.predict(images)
+print("val %s"%val)
+rach=val.argmax()
+if rach==0:
+  print("happily surprised 1")
+if rach==1:
+  print("angrily disgusted 10")
+if rach==2:
+  print("disgustedly surprised 11")
+if rach==3:
+  print("happily disgusted 2")
+if rach==10:
+  print("sadly fearful 3")
+if rach==5:
+  print("sadly angry 4")
+if rach==1:
+  print("sadly surprised 5")
+if rach==7:
+  print("sadly disgusted 6")
+if rach==8:
+  print("fearfully angry 7")
+if rach==9:
+  print("fearfully surprised 8")
+if rach==10:
+  print("angrily surprised 9")
