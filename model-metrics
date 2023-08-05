@@ -1,0 +1,48 @@
+from sklearn.metrics import accuracy_score
+from sklearn.metrics import make_scorer
+from sklearn.metrics import f1_score
+from sklearn.metrics import recall_score
+from sklearn.metrics import precision_score
+from sklearn.metrics import roc_auc_score
+import keras.backend as K
+
+import matplotlib.pyplot as plt
+plt.plot(learner.history.history['loss'], label='train loss')
+plt.plot(learner.history.history['val_loss'], label='val loss')
+plt.legend()
+plt.show()
+plt.savefig('LossVal_loss')
+
+
+#plot the precision
+plt.plot(learner.history.history['precision'], label='train prec')
+plt.plot(learner.history.history['val_precision'], label='val prec')
+plt.legend()
+plt.show()
+plt.savefig('AccVal_prec')
+
+#plot recall
+plt.plot(learner.history.history['recall'], label='train recall')
+plt.plot(learner.history.history['val_recall'], label='val recall')
+plt.legend()
+plt.show()
+plt.savefig('AccVal_rec')
+
+
+#plot f1_score
+plt.plot(learner.history.history['f1_score'], label='train f1')
+plt.plot(learner.history.history['val_f1_score'], label='val f1')
+plt.legend()
+plt.show()
+plt.savefig('AccVal_f1')
+
+# plot the accuracy
+plt.plot(learner.history.history['accuracy'], label='train acc')
+plt.plot(learner.history.history['val_accuracy'], label='val acc')
+plt.legend()
+plt.show()
+plt.savefig('AccVal_acc')
+
+
+
+
